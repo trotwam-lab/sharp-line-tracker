@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>🎯 Sharp Line Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+        #root { min-height: 100vh; }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 3px solid #2a2a4e;
+            border-top-color: #4ECDC4;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
+        
+        const API_KEY = '3095d389b893ce00dfa2a3e6aa81ff4d';
+        const BASE_URL = 'https://api.the-odds-api.com/v4';
+        
+        // Demo data for when API isn't available
+        const DEMO_GAMES = {
+            'basketball_nba': [
+                {
+                    id: 'demo1',
+                    sport_key: 'basketball_nba',
+                    commence_time: new Date(Date.now() + 3600000).toISOString(),
+                    home_team: 'Los Angeles Lakers',
+                    away_team: 'Boston Celtics',
+                    bookmakers: [
+                        { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 2.5, price: -110 }, { name: 'Los Angeles Lakers', point: -2.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 224.5, price: -110 }, { name: 'Under', point: 224.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -130 }, { name: 'Los Angeles Lakers', price: +110 }] }] },
+                        { key: 'draftkings', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 2.5, price: -108 }, { name: 'Los Angeles Lakers', point: -2.5, price: -112 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 225, price: -110 }, { name: 'Under', point: 225, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -128 }, { name: 'Los Angeles Lakers', price: +108 }] }] },
+                        { key: 'betmgm', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 3, price: -110 }, { name: 'Los Angeles Lakers', point: -3, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 224.5, price: -105 }, { name: 'Under', point: 224.5, price: -115 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -135 }, { name: 'Los Angeles Lakers', price: +115 }] }] },
+                        { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 2, price: -105 }, { name: 'Los Angeles Lakers', point: -2, price: -105 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 224, price: -105 }, { name: 'Under', point: 224, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -125 }, { name: 'Los Angeles Lakers', price: +105 }] }] },
+                        { key: 'bovada', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 2, price: -110 }, { name: 'Los Angeles Lakers', point: -2, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 224, price: -110 }, { name: 'Under', point: 224, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -125 }, { name: 'Los Angeles Lakers', price: +105 }] }] },
+                    ]
+                },
+                {
+                    id: 'demo2',
+                    sport_key: 'basketball_nba',
+                    commence_time: new Date(Date.now() + 7200000).toISOString(),
+                    home_team: 'Golden State Warriors',
+                    away_team: 'Phoenix Suns',
+                    bookmakers: [
+                        { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Phoenix Suns', point: -1.5, price: -110 }, { name: 'Golden State Warriors', point: 1.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 230, price: -110 }, { name: 'Under', point: 230, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Phoenix Suns', price: -118 }, { name: 'Golden State Warriors', price: -102 }] }] },
+                        { key: 'draftkings', markets: [{ key: 'spreads', outcomes: [{ name: 'Phoenix Suns', point: -1.5, price: -112 }, { name: 'Golden State Warriors', point: 1.5, price: -108 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 229.5, price: -110 }, { name: 'Under', point: 229.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Phoenix Suns', price: -115 }, { name: 'Golden State Warriors', price: -105 }] }] },
+                        { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Phoenix Suns', point: -2.5, price: -102 }, { name: 'Golden State Warriors', point: 2.5, price: -108 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 229, price: -105 }, { name: 'Under', point: 229, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Phoenix Suns', price: -130 }, { name: 'Golden State Warriors', price: +110 }] }] },
+                        { key: 'bovada', markets: [{ key: 'spreads', outcomes: [{ name: 'Phoenix Suns', point: -2.5, price: -105 }, { name: 'Golden State Warriors', point: 2.5, price: -115 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 229, price: -108 }, { name: 'Under', point: 229, price: -112 }] }, { key: 'h2h', outcomes: [{ name: 'Phoenix Suns', price: -128 }, { name: 'Golden State Warriors', price: +108 }] }] },
+                    ]
+                },
+                {
+                    id: 'demo3',
+                    sport_key: 'basketball_nba',
+                    commence_time: new Date(Date.now() + 10800000).toISOString(),
+                    home_team: 'Miami Heat',
+                    away_team: 'New York Knicks',
+                    bookmakers: [
+                        { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'New York Knicks', point: 4.5, price: -110 }, { name: 'Miami Heat', point: -4.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 212, price: -110 }, { name: 'Under', point: 212, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'New York Knicks', price: +165 }, { name: 'Miami Heat', price: -190 }] }] },
+                        { key: 'draftkings', markets: [{ key: 'spreads', outcomes: [{ name: 'New York Knicks', point: 4.5, price: -108 }, { name: 'Miami Heat', point: -4.5, price: -112 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 211.5, price: -110 }, { name: 'Under', point: 211.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'New York Knicks', price: +160 }, { name: 'Miami Heat', price: -185 }] }] },
+                        { key: 'betmgm', markets: [{ key: 'spreads', outcomes: [{ name: 'New York Knicks', point: 5, price: -110 }, { name: 'Miami Heat', point: -5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 212.5, price: -110 }, { name: 'Under', point: 212.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'New York Knicks', price: +170 }, { name: 'Miami Heat', price: -200 }] }] },
+                        { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'New York Knicks', point: 4, price: -105 }, { name: 'Miami Heat', point: -4, price: -105 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 211, price: -102 }, { name: 'Under', point: 211, price: -108 }] }, { key: 'h2h', outcomes: [{ name: 'New York Knicks', price: +155 }, { name: 'Miami Heat', price: -175 }] }] },
+                    ]
+                }
+            ],
+            'americanfootball_nfl': [
+                {
+                    id: 'nfl1',
+                    sport_key: 'americanfootball_nfl',
+                    commence_time: new Date(Date.now() + 86400000).toISOString(),
+                    home_team: 'Kansas City Chiefs',
+                    away_team: 'Buffalo Bills',
+                    bookmakers: [
+                        { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Buffalo Bills', point: 3.5, price: -110 }, { name: 'Kansas City Chiefs', point: -3.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 52.5, price: -110 }, { name: 'Under', point: 52.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Buffalo Bills', price: +150 }, { name: 'Kansas City Chiefs', price: -175 }] }] },
+                        { key: 'draftkings', markets: [{ key: 'spreads', outcomes: [{ name: 'Buffalo Bills', point: 3, price: -108 }, { name: 'Kansas City Chiefs', point: -3, price: -112 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 52, price: -110 }, { name: 'Under', point: 52, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Buffalo Bills', price: +145 }, { name: 'Kansas City Chiefs', price: -170 }] }] },
+                        { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Buffalo Bills', point: 2.5, price: -105 }, { name: 'Kansas City Chiefs', point: -2.5, price: -105 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 51.5, price: -105 }, { name: 'Under', point: 51.5, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Buffalo Bills', price: +135 }, { name: 'Kansas City Chiefs', price: -155 }] }] },
+                        { key: 'bovada', markets: [{ key: 'spreads', outcomes: [{ name: 'Buffalo Bills', point: 2.5, price: -110 }, { name: 'Kansas City Chiefs', point: -2.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 51.5, price: -110 }, { name: 'Under', point: 51.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Buffalo Bills', price: +138 }, { name: 'Kansas City Chiefs', price: -160 }] }] },
+                    ]
+                }
+            ],
+            'icehockey_nhl': [
+                {
+                    id: 'nhl1',
+                    sport_key: 'icehockey_nhl',
+                    commence_time: new Date(Date.now() + 5400000).toISOString(),
+                    home_team: 'Toronto Maple Leafs',
+                    away_team: 'Montreal Canadiens',
+                    bookmakers: [
+                        { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Montreal Canadiens', point: 1.5, price: -180 }, { name: 'Toronto Maple Leafs', point: -1.5, price: +155 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 6.5, price: -110 }, { name: 'Under', point: 6.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Montreal Canadiens', price: +175 }, { name: 'Toronto Maple Leafs', price: -210 }] }] },
+                        { key: 'draftkings', markets: [{ key: 'spreads', outcomes: [{ name: 'Montreal Canadiens', point: 1.5, price: -175 }, { name: 'Toronto Maple Leafs', point: -1.5, price: +150 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 6.5, price: -108 }, { name: 'Under', point: 6.5, price: -112 }] }, { key: 'h2h', outcomes: [{ name: 'Montreal Canadiens', price: +170 }, { name: 'Toronto Maple Leafs', price: -200 }] }] },
+                        { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Montreal Canadiens', point: 1.5, price: -165 }, { name: 'Toronto Maple Leafs', point: -1.5, price: +145 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 6, price: -105 }, { name: 'Under', point: 6, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Montreal Canadiens', price: +165 }, { name: 'Toronto Maple Leafs', price: -190 }] }] },
+                    ]
+                }
+            ]
+        };
+
+        const DEMO_SCORES = {
+            'basketball_nba': [
+                { id: 's1', sport_key: 'basketball_nba', commence_time: new Date(Date.now() - 7200000).toISOString(), completed: true, home_team: 'Denver Nuggets', away_team: 'Milwaukee Bucks', scores: [{ name: 'Denver Nuggets', score: '118' }, { name: 'Milwaukee Bucks', score: '112' }] },
+                { id: 's2', sport_key: 'basketball_nba', commence_time: new Date(Date.now() - 10800000).toISOString(), completed: true, home_team: 'Philadelphia 76ers', away_team: 'Cleveland Cavaliers', scores: [{ name: 'Philadelphia 76ers', score: '105' }, { name: 'Cleveland Cavaliers', score: '109' }] },
+                { id: 's3', sport_key: 'basketball_nba', commence_time: new Date(Date.now() - 3600000).toISOString(), completed: false, home_team: 'Dallas Mavericks', away_team: 'Sacramento Kings', scores: [{ name: 'Dallas Mavericks', score: '87' }, { name: 'Sacramento Kings', score: '82' }] },
+            ],
+            'americanfootball_nfl': [
+                { id: 'nfls1', sport_key: 'americanfootball_nfl', commence_time: new Date(Date.now() - 86400000).toISOString(), completed: true, home_team: 'San Francisco 49ers', away_team: 'Dallas Cowboys', scores: [{ name: 'San Francisco 49ers', score: '31' }, { name: 'Dallas Cowboys', score: '24' }] },
+            ],
+            'icehockey_nhl': [
+                { id: 'nhls1', sport_key: 'icehockey_nhl', commence_time: new Date(Date.now() - 14400000).toISOString(), completed: true, home_team: 'Boston Bruins', away_team: 'New York Rangers', scores: [{ name: 'Boston Bruins', score: '4' }, { name: 'New York Rangers', score: '3' }] },
+            ]
+        };
+        
+        const SPORTS = [
+            { key: 'basketball_nba', name: 'NBA', emoji: '🏀' },
+            { key: 'americanfootball_nfl', name: 'NFL', emoji: '🏈' },
+            { key: 'icehockey_nhl', name: 'NHL', emoji: '🏒' },
+            { key: 'baseball_mlb', name: 'MLB', emoji: '⚾' },
+            { key: 'americanfootball_ncaaf', name: 'NCAAF', emoji: '🏈' },
+            { key: 'basketball_ncaab', name: 'NCAAB', emoji: '🏀' },
+        ];
+        
+        const SHARP_BOOKS = ['pinnacle', 'betonlineag', 'bovada'];
+        
+        const BOOK_NAMES = {
+            fanduel: 'FanDuel', draftkings: 'DraftKings', betmgm: 'BetMGM',
+            caesars: 'Caesars', pointsbetus: 'PointsBet', betonlineag: 'BetOnline',
+            bovada: 'Bovada', pinnacle: 'Pinnacle'
+        };
+
+        const styles = {
+            container: { minHeight: '100vh', display: 'flex', flexDirection: 'column' },
+            header: { padding: '20px', paddingTop: 'max(20px, env(safe-area-inset-top))', background: 'linear-gradient(135deg, #16213e 0%, #1a1a2e 100%)', position: 'sticky', top: 0, zIndex: 100, borderBottom: '1px solid #2a2a4e' },
+            headerTitle: { fontSize: '24px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' },
+            lastUpdate: { fontSize: '11px', color: '#888', marginTop: '4px' },
+            tabContainer: { display: 'flex', background: '#16213e', padding: '10px 15px', gap: '10px' },
+            tab: { flex: 1, padding: '12px 20px', borderRadius: '12px', border: 'none', background: '#1a1a2e', color: '#888', fontWeight: '600', fontSize: '14px', cursor: 'pointer', transition: 'all 0.2s ease', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' },
+            tabActive: { background: 'linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%)', color: '#1a1a2e' },
+            sportSelector: { display: 'flex', overflowX: 'auto', padding: '10px 15px', gap: '10px', background: '#16213e', WebkitOverflowScrolling: 'touch' },
+            sportButton: { padding: '10px 20px', borderRadius: '25px', border: 'none', background: '#1a1a2e', color: '#888', fontWeight: '600', fontSize: '14px', cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' },
+            sportButtonActive: { background: 'linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%)', color: '#1a1a2e' },
+            legend: { display: 'flex', justifyContent: 'center', gap: '20px', padding: '12px', background: '#16213e', borderBottom: '1px solid #2a2a4e', flexWrap: 'wrap' },
+            legendItem: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#888' },
+            legendDot: { width: '10px', height: '10px', borderRadius: '50%' },
+            content: { flex: 1, padding: '15px', paddingBottom: 'max(80px, calc(env(safe-area-inset-bottom) + 70px))' },
+            gameCard: { background: 'linear-gradient(145deg, #1e2745 0%, #16213e 100%)', borderRadius: '16px', padding: '18px', marginBottom: '15px', borderLeft: '4px solid #4ECDC4', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', animation: 'slideIn 0.3s ease' },
+            badgeContainer: { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' },
+            badge: { padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' },
+            sharpBadge: { background: 'linear-gradient(135deg, #FF6B6B 0%, #ee5a5a 100%)', color: '#fff' },
+            rlmBadge: { background: 'linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%)', color: '#fff' },
+            discrepancyBadge: { background: 'linear-gradient(135deg, #FFE66D 0%, #f0d860 100%)', color: '#1a1a2e' },
+            demoBadge: { background: '#2a2a4e', color: '#888' },
+            teams: { marginBottom: '12px' },
+            teamRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' },
+            teamName: { fontSize: '17px', fontWeight: '600' },
+            sharpTeam: { color: '#FF6B6B' },
+            vsText: { color: '#666', fontSize: '12px', padding: '2px 0' },
+            consensus: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 0', borderTop: '1px solid #2a2a4e', marginTop: '8px' },
+            consensusLabel: { color: '#888', fontSize: '13px' },
+            consensusValue: { color: '#4ECDC4', fontSize: '20px', fontWeight: '700' },
+            gameTime: { fontSize: '12px', color: '#888', marginTop: '8px' },
+            liveIndicator: { color: '#FF6B6B', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '6px' },
+            alertBox: { marginTop: '10px', padding: '10px 12px', borderRadius: '10px', fontSize: '13px' },
+            sharpAlert: { background: 'rgba(255, 107, 107, 0.15)', color: '#FF6B6B', border: '1px solid rgba(255, 107, 107, 0.3)' },
+            tapHint: { color: '#666', fontSize: '11px', textAlign: 'right', marginTop: '12px' },
+            noGames: { textAlign: 'center', padding: '60px 20px', color: '#888' },
+            resultCard: { background: 'linear-gradient(145deg, #1e2745 0%, #16213e 100%)', borderRadius: '16px', padding: '18px', marginBottom: '15px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', animation: 'slideIn 0.3s ease' },
+            resultHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' },
+            finalBadge: { padding: '5px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', background: '#2a2a4e', color: '#888' },
+            liveBadge: { background: 'linear-gradient(135deg, #FF6B6B 0%, #ee5a5a 100%)', color: '#fff' },
+            resultTeamRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid #2a2a4e' },
+            resultTeamRowLast: { borderBottom: 'none' },
+            resultTeamInfo: { display: 'flex', alignItems: 'center', gap: '10px' },
+            resultTeamName: { fontSize: '16px', fontWeight: '600' },
+            winnerName: { color: '#4ECDC4' },
+            loserName: { color: '#888' },
+            winnerBadge: { fontSize: '10px', padding: '3px 8px', borderRadius: '10px', background: 'rgba(78, 205, 196, 0.2)', color: '#4ECDC4', fontWeight: '700' },
+            resultScore: { fontSize: '28px', fontWeight: '800' },
+            winnerScore: { color: '#4ECDC4' },
+            loserScore: { color: '#888' },
+            resultMeta: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #2a2a4e', fontSize: '12px', color: '#888' },
+            modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', zIndex: 200, display: 'flex', flexDirection: 'column' },
+            modalContent: { flex: 1, background: '#1a1a2e', marginTop: 'max(0px, env(safe-area-inset-top))', borderTopLeftRadius: '20px', borderTopRightRadius: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+            modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: '#16213e', borderBottom: '1px solid #2a2a4e' },
+            modalTitle: { fontSize: '16px', fontWeight: '700', flex: 1, paddingRight: '10px' },
+            closeButton: { width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: '#2a2a4e', color: '#fff', fontSize: '18px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            modalBody: { flex: 1, overflow: 'auto', padding: '15px', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' },
+            section: { background: '#16213e', borderRadius: '14px', padding: '16px', marginBottom: '15px' },
+            sectionTitle: { fontSize: '15px', fontWeight: '700', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '8px' },
+            table: { width: '100%', fontSize: '12px' },
+            tableHeader: { display: 'flex', borderBottom: '1px solid #2a2a4e', paddingBottom: '10px', marginBottom: '5px', color: '#888', fontWeight: '600' },
+            tableRow: { display: 'flex', padding: '10px 0', borderBottom: '1px solid #2a2a4e', alignItems: 'center' },
+            sharpRow: { background: 'rgba(255, 107, 107, 0.1)', margin: '0 -16px', padding: '10px 16px', borderRadius: '8px' },
+            bestRow: { background: 'rgba(78, 205, 196, 0.15)', margin: '0 -16px', padding: '10px 16px', borderRadius: '8px' },
+            cell: { flex: 1, textAlign: 'center' },
+            bookCell: { flex: 1.3, textAlign: 'left', fontWeight: '500' },
+            bestLine: { color: '#4ECDC4', fontWeight: '700' },
+            refreshButton: { position: 'fixed', bottom: 'max(20px, env(safe-area-inset-bottom))', right: '20px', width: '56px', height: '56px', borderRadius: '50%', border: 'none', background: 'linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%)', color: '#1a1a2e', fontSize: '24px', cursor: 'pointer', boxShadow: '0 4px 20px rgba(78, 205, 196, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 },
+            dateSelector: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', padding: '12px 15px', background: '#16213e', borderBottom: '1px solid #2a2a4e' },
+            dateButton: { width: '36px', height: '36px', borderRadius: '50%', border: 'none', background: '#2a2a4e', color: '#fff', fontSize: '16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+            dateDisplay: { fontSize: '15px', fontWeight: '600', color: '#fff', minWidth: '150px', textAlign: 'center' },
+            statsSummary: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '15px' },
+            statBox: { background: '#16213e', borderRadius: '12px', padding: '15px', textAlign: 'center' },
+            statValue: { fontSize: '24px', fontWeight: '800', color: '#4ECDC4' },
+            statLabel: { fontSize: '11px', color: '#888', marginTop: '4px' },
+            demoBanner: { background: 'rgba(255, 230, 109, 0.1)', border: '1px solid rgba(255, 230, 109, 0.3)', borderRadius: '8px', padding: '10px 15px', margin: '10px 15px', fontSize: '12px', color: '#FFE66D', textAlign: 'center' }
+        };
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('lines');
+            const [games, setGames] = useState([]);
+            const [scores, setScores] = useState([]);
+            const [selectedSport, setSelectedSport] = useState(SPORTS[0]);
+            const [selectedGame, setSelectedGame] = useState(null);
+            const [lastUpdate, setLastUpdate] = useState(null);
+            const [selectedDate, setSelectedDate] = useState(new Date());
+            const [isDemo, setIsDemo] = useState(true);
+
+            // Load demo data immediately
+            useEffect(() => {
+                const demoGames = DEMO_GAMES[selectedSport.key] || [];
+                const demoScores = DEMO_SCORES[selectedSport.key] || [];
+                setGames(demoGames);
+                setScores(demoScores);
+                setLastUpdate(new Date());
+                setIsDemo(true);
+            }, [selectedSport]);
+
+            const getFilteredScores = () => {
+                const dateStr = selectedDate.toDateString();
+                return scores.filter(game => {
+                    const gameDate = new Date(game.commence_time).toDateString();
+                    return gameDate === dateStr;
+                });
+            };
+
+            const changeDate = (days) => {
+                const newDate = new Date(selectedDate);
+                newDate.setDate(newDate.getDate() + days);
+                setSelectedDate(newDate);
+            };
+
+            const formatDate = (date) => {
+                const today = new Date();
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                if (date.toDateString() === today.toDateString()) return 'Today';
+                if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+                return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+            };
+
+            const getDailyStats = () => {
+                const dayScores = getFilteredScores().filter(g => g.completed);
+                const total = dayScores.length;
+                const homeWins = dayScores.filter(g => {
+                    const homeScore = g.scores?.find(s => s.name === g.home_team)?.score;
+                    const awayScore = g.scores?.find(s => s.name === g.away_team)?.score;
+                    return parseInt(homeScore) > parseInt(awayScore);
+                }).length;
+                return { total, homeWins, awayWins: total - homeWins };
+            };
+
+            const getConsensusLine = (game, market) => {
+                const lines = [];
+                game.bookmakers?.forEach(book => {
+                    const m = book.markets?.find(x => x.key === market);
+                    if (m?.outcomes?.[0]?.point !== undefined) lines.push(m.outcomes[0].point);
+                });
+                if (lines.length === 0) return null;
+                return (lines.reduce((a, b) => a + b, 0) / lines.length).toFixed(1);
+            };
+
+            const detectSharpAction = (game) => {
+                const sharpLines = [], publicLines = [];
+                game.bookmakers?.forEach(book => {
+                    const spread = book.markets?.find(m => m.key === 'spreads');
+                    if (spread?.outcomes?.[0]?.point !== undefined) {
+                        const data = { book: book.key, line: spread.outcomes[0].point };
+                        if (SHARP_BOOKS.includes(book.key)) sharpLines.push(data);
+                        else publicLines.push(data);
+                    }
+                });
+                if (sharpLines.length === 0 || publicLines.length === 0) return null;
+                const avgSharp = sharpLines.reduce((a, b) => a + b.line, 0) / sharpLines.length;
+                const avgPublic = publicLines.reduce((a, b) => a + b.line, 0) / publicLines.length;
+                const diff = Math.abs(avgSharp - avgPublic);
+                if (diff >= 0.5) {
+                    return { detected: true, sharpSide: avgSharp > avgPublic ? game.away_team : game.home_team, diff: diff.toFixed(1) };
+                }
+                return { detected: false };
+            };
+
+            const getLineDiscrepancy = (game, market) => {
+                const lines = [];
+                game.bookmakers?.forEach(book => {
+                    const m = book.markets?.find(x => x.key === market);
+                    if (m?.outcomes?.[0]?.point !== undefined) lines.push({ book: book.key, line: m.outcomes[0].point });
+                });
+                if (lines.length < 2) return null;
+                const sorted = lines.sort((a, b) => a.line - b.line);
+                const diff = sorted[sorted.length - 1].line - sorted[0].line;
+                return { diff: diff.toFixed(1), significant: diff >= 1 };
+            };
+
+            const GameCard = ({ game }) => {
+                const sharpAction = detectSharpAction(game);
+                const discrepancy = getLineDiscrepancy(game, 'spreads');
+                const consensus = getConsensusLine(game, 'spreads');
+                const gameTime = new Date(game.commence_time);
+                const isLive = gameTime < new Date();
+                
+                return (
+                    <div style={styles.gameCard} onClick={() => setSelectedGame(game)}>
+                        <div style={styles.badgeContainer}>
+                            {sharpAction?.detected && (
+                                <span style={{...styles.badge, ...styles.sharpBadge}}>🎯 SHARP ACTION</span>
+                            )}
+                            {discrepancy?.significant && (
+                                <span style={{...styles.badge, ...styles.discrepancyBadge}}>📊 {discrepancy.diff}pt GAP</span>
+                            )}
+                        </div>
+                        <div style={styles.teams}>
+                            <div style={styles.teamRow}>
+                                <span style={{...styles.teamName, ...(sharpAction?.sharpSide === game.away_team ? styles.sharpTeam : {})}}>
+                                    {game.away_team}
+                                </span>
+                            </div>
+                            <div style={styles.vsText}>@</div>
+                            <div style={styles.teamRow}>
+                                <span style={{...styles.teamName, ...(sharpAction?.sharpSide === game.home_team ? styles.sharpTeam : {})}}>
+                                    {game.home_team}
+                                </span>
+                            </div>
+                        </div>
+                        <div style={styles.consensus}>
+                            <span style={styles.consensusLabel}>Consensus Spread:</span>
+                            <span style={styles.consensusValue}>
+                                {consensus ? (parseFloat(consensus) > 0 ? `+${consensus}` : consensus) : 'N/A'}
+                            </span>
+                        </div>
+                        <div style={styles.gameTime}>
+                            {isLive ? (
+                                <span style={styles.liveIndicator}>
+                                    <span style={{ width: '8px', height: '8px', background: '#FF6B6B', borderRadius: '50%', animation: 'pulse 1.5s infinite' }}></span>
+                                    LIVE
+                                </span>
+                            ) : gameTime.toLocaleString()}
+                        </div>
+                        {sharpAction?.detected && (
+                            <div style={{...styles.alertBox, ...styles.sharpAlert}}>
+                                💡 Sharp books favor <strong>{sharpAction.sharpSide}</strong> by {sharpAction.diff} pts
+                            </div>
+                        )}
+                        <div style={styles.tapHint}>Tap for line comparison →</div>
+                    </div>
+                );
+            };
+
+            const ResultCard = ({ game }) => {
+                const homeScore = game.scores?.find(s => s.name === game.home_team)?.score;
+                const awayScore = game.scores?.find(s => s.name === game.away_team)?.score;
+                const homeScoreNum = parseInt(homeScore) || 0;
+                const awayScoreNum = parseInt(awayScore) || 0;
+                const homeWon = homeScoreNum > awayScoreNum;
+                const awayWon = awayScoreNum > homeScoreNum;
+                const gameTime = new Date(game.commence_time);
+                const isLive = !game.completed && gameTime < new Date();
+                
+                return (
+                    <div style={styles.resultCard}>
+                        <div style={styles.resultHeader}>
+                            <span style={{fontSize: '12px', color: '#888'}}>
+                                {gameTime.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                            <span style={{...styles.finalBadge, ...(isLive ? styles.liveBadge : {})}}>
+                                {game.completed ? 'FINAL' : isLive ? '🔴 LIVE' : 'UPCOMING'}
+                            </span>
+                        </div>
+                        <div style={styles.resultTeamRow}>
+                            <div style={styles.resultTeamInfo}>
+                                <span style={{...styles.resultTeamName, ...(awayWon ? styles.winnerName : game.completed ? styles.loserName : {})}}>
+                                    {game.away_team}
+                                </span>
+                                {awayWon && <span style={styles.winnerBadge}>WIN</span>}
+                            </div>
+                            <span style={{...styles.resultScore, ...(awayWon ? styles.winnerScore : game.completed ? styles.loserScore : {})}}>
+                                {awayScore || '-'}
+                            </span>
+                        </div>
+                        <div style={{...styles.resultTeamRow, ...styles.resultTeamRowLast}}>
+                            <div style={styles.resultTeamInfo}>
+                                <span style={{...styles.resultTeamName, ...(homeWon ? styles.winnerName : game.completed ? styles.loserName : {})}}>
+                                    {game.home_team}
+                                </span>
+                                {homeWon && <span style={styles.winnerBadge}>WIN</span>}
+                            </div>
+                            <span style={{...styles.resultScore, ...(homeWon ? styles.winnerScore : game.completed ? styles.loserScore : {})}}>
+                                {homeScore || '-'}
+                            </span>
+                        </div>
+                        {game.completed && (
+                            <div style={styles.resultMeta}>
+                                <span>Total: {homeScoreNum + awayScoreNum} pts</span>
+                                <span style={{color: '#4ECDC4', fontWeight: '600'}}>
+                                    {homeWon ? game.home_team.split(' ').pop() : game.away_team.split(' ').pop()} by {Math.abs(homeScoreNum - awayScoreNum)}
+                                </span>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            const DetailModal = ({ game, onClose }) => {
+                if (!game) return null;
+                const spreadLines = [], totalLines = [], mlLines = [];
+                game.bookmakers?.forEach(book => {
+                    const spread = book.markets?.find(m => m.key === 'spreads');
+                    const total = book.markets?.find(m => m.key === 'totals');
+                    const ml = book.markets?.find(m => m.key === 'h2h');
+                    if (spread?.outcomes) spreadLines.push({ book: book.key, away: spread.outcomes.find(o => o.name === game.away_team), home: spread.outcomes.find(o => o.name === game.home_team) });
+                    if (total?.outcomes) totalLines.push({ book: book.key, over: total.outcomes.find(o => o.name === 'Over'), under: total.outcomes.find(o => o.name === 'Under') });
+                    if (ml?.outcomes) mlLines.push({ book: book.key, away: ml.outcomes.find(o => o.name === game.away_team), home: ml.outcomes.find(o => o.name === game.home_team) });
+                });
+                spreadLines.sort((a, b) => (b.away?.point || 0) - (a.away?.point || 0));
+                const formatPrice = (p) => p > 0 ? `+${p}` : p;
+                const formatLine = (l) => l > 0 ? `+${l}` : l;
+                const awayShort = game.away_team.split(' ').pop();
+                const homeShort = game.home_team.split(' ').pop();
+                
+                return (
+                    <div style={styles.modalOverlay} onClick={onClose}>
+                        <div style={styles.modalContent} onClick={e => e.stopPropagation()}>
+                            <div style={styles.modalHeader}>
+                                <span style={styles.modalTitle}>{game.away_team} @ {game.home_team}</span>
+                                <button style={styles.closeButton} onClick={onClose}>✕</button>
+                            </div>
+                            <div style={styles.modalBody}>
+                                <div style={styles.section}>
+                                    <div style={styles.sectionTitle}>📊 Spread Comparison</div>
+                                    <div style={styles.table}>
+                                        <div style={styles.tableHeader}>
+                                            <span style={styles.bookCell}>Book</span>
+                                            <span style={styles.cell}>{awayShort}</span>
+                                            <span style={styles.cell}>{homeShort}</span>
+                                        </div>
+                                        {spreadLines.map((line, idx) => (
+                                            <div key={idx} style={{...styles.tableRow, ...(SHARP_BOOKS.includes(line.book) ? styles.sharpRow : {}), ...(idx === 0 ? styles.bestRow : {})}}>
+                                                <span style={styles.bookCell}>{SHARP_BOOKS.includes(line.book) ? '🎯 ' : ''}{BOOK_NAMES[line.book] || line.book}</span>
+                                                <span style={{...styles.cell, ...(idx === 0 ? styles.bestLine : {})}}>{formatLine(line.away?.point)} ({formatPrice(line.away?.price)})</span>
+                                                <span style={styles.cell}>{formatLine(line.home?.point)} ({formatPrice(line.home?.price)})</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div style={styles.section}>
+                                    <div style={styles.sectionTitle}>📈 Totals</div>
+                                    <div style={styles.table}>
+                                        <div style={styles.tableHeader}>
+                                            <span style={styles.bookCell}>Book</span>
+                                            <span style={styles.cell}>Over</span>
+                                            <span style={styles.cell}>Under</span>
+                                        </div>
+                                        {totalLines.map((line, idx) => (
+                                            <div key={idx} style={{...styles.tableRow, ...(SHARP_BOOKS.includes(line.book) ? styles.sharpRow : {})}}>
+                                                <span style={styles.bookCell}>{BOOK_NAMES[line.book] || line.book}</span>
+                                                <span style={styles.cell}>O{line.over?.point} ({formatPrice(line.over?.price)})</span>
+                                                <span style={styles.cell}>U{line.under?.point} ({formatPrice(line.under?.price)})</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div style={styles.section}>
+                                    <div style={styles.sectionTitle}>💰 Moneyline</div>
+                                    <div style={styles.table}>
+                                        <div style={styles.tableHeader}>
+                                            <span style={styles.bookCell}>Book</span>
+                                            <span style={styles.cell}>{awayShort}</span>
+                                            <span style={styles.cell}>{homeShort}</span>
+                                        </div>
+                                        {mlLines.map((line, idx) => (
+                                            <div key={idx} style={{...styles.tableRow, ...(SHARP_BOOKS.includes(line.book) ? styles.sharpRow : {})}}>
+                                                <span style={styles.bookCell}>{BOOK_NAMES[line.book] || line.book}</span>
+                                                <span style={styles.cell}>{formatPrice(line.away?.price)}</span>
+                                                <span style={styles.cell}>{formatPrice(line.home?.price)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const dailyStats = getDailyStats();
+            const filteredScores = getFilteredScores();
+
+            return (
+                <div style={styles.container}>
+                    <header style={styles.header}>
+                        <h1 style={styles.headerTitle}>🎯 Sharp Line Tracker</h1>
+                        {lastUpdate && <div style={styles.lastUpdate}>Updated: {lastUpdate.toLocaleTimeString()}</div>}
+                    </header>
+                    
+                    <div style={styles.tabContainer}>
+                        <button style={{...styles.tab, ...(activeTab === 'lines' ? styles.tabActive : {})}} onClick={() => setActiveTab('lines')}>📊 Lines</button>
+                        <button style={{...styles.tab, ...(activeTab === 'results' ? styles.tabActive : {})}} onClick={() => setActiveTab('results')}>🏆 Results</button>
+                    </div>
+                    
+                    <div style={styles.sportSelector}>
+                        {SPORTS.map(sport => (
+                            <button key={sport.key} style={{...styles.sportButton, ...(selectedSport.key === sport.key ? styles.sportButtonActive : {})}} onClick={() => setSelectedSport(sport)}>
+                                {sport.emoji} {sport.name}
+                            </button>
+                        ))}
+                    </div>
+                    
+                    {isDemo && (
+                        <div style={styles.demoBanner}>
+                            📋 Demo Mode - Showing sample data. To get live odds, host this file on a web server.
+                        </div>
+                    )}
+                    
+                    {activeTab === 'lines' && (
+                        <>
+                            <div style={styles.legend}>
+                                <div style={styles.legendItem}><span style={{...styles.legendDot, background: '#FF6B6B'}}></span>Sharp Action</div>
+                                <div style={styles.legendItem}><span style={{...styles.legendDot, background: '#FFE66D'}}></span>Line Gap</div>
+                            </div>
+                            <main style={styles.content}>
+                                {games.length > 0 ? games.map(game => <GameCard key={game.id} game={game} />) : (
+                                    <div style={styles.noGames}>
+                                        <div style={{fontSize: '48px', marginBottom: '15px'}}>🏟️</div>
+                                        <div>No games for {selectedSport.name}</div>
+                                        <div style={{fontSize: '13px', marginTop: '10px', color: '#666'}}>Try NBA or NFL for demo data</div>
+                                    </div>
+                                )}
+                            </main>
+                        </>
+                    )}
+                    
+                    {activeTab === 'results' && (
+                        <>
+                            <div style={styles.dateSelector}>
+                                <button style={styles.dateButton} onClick={() => changeDate(-1)}>‹</button>
+                                <span style={styles.dateDisplay}>{formatDate(selectedDate)}</span>
+                                <button style={styles.dateButton} onClick={() => changeDate(1)}>›</button>
+                            </div>
+                            <main style={styles.content}>
+                                {filteredScores.length > 0 && (
+                                    <div style={styles.statsSummary}>
+                                        <div style={styles.statBox}><div style={styles.statValue}>{dailyStats.total}</div><div style={styles.statLabel}>Games</div></div>
+                                        <div style={styles.statBox}><div style={styles.statValue}>{dailyStats.homeWins}</div><div style={styles.statLabel}>Home Wins</div></div>
+                                        <div style={styles.statBox}><div style={styles.statValue}>{dailyStats.awayWins}</div><div style={styles.statLabel}>Away Wins</div></div>
+                                    </div>
+                                )}
+                                {filteredScores.length > 0 ? filteredScores.map(game => <ResultCard key={game.id} game={game} />) : (
+                                    <div style={styles.noGames}>
+                                        <div style={{fontSize: '48px', marginBottom: '15px'}}>📅</div>
+                                        <div>No games for {formatDate(selectedDate)}</div>
+                                        <div style={{fontSize: '13px', marginTop: '10px', color: '#666'}}>Try Today or Yesterday</div>
+                                    </div>
+                                )}
+                            </main>
+                        </>
+                    )}
+                    
+                    <button style={styles.refreshButton} onClick={() => setLastUpdate(new Date())}>🔄</button>
+                    
+                    {selectedGame && <DetailModal game={selectedGame} onClose={() => setSelectedGame(null)} />}
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    </script>
+</body>
+</html>
