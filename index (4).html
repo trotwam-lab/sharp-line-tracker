@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>Sharp Line Tracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            min-height: 100vh;
+        }
+        .header {
+            padding: 20px;
+            background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #2a2a4e;
+        }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .header .update { font-size: 11px; color: #888; margin-top: 4px; }
+        .tabs {
+            display: flex;
+            background: #16213e;
+            padding: 10px 15px;
+            gap: 10px;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            border-radius: 12px;
+            border: none;
+            background: #1a1a2e;
+            color: #888;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);
+            color: #1a1a2e;
+        }
+        .sports {
+            display: flex;
+            overflow-x: auto;
+            padding: 10px 15px;
+            gap: 10px;
+            background: #16213e;
+        }
+        .sport-btn {
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: none;
+            background: #1a1a2e;
+            color: #888;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .sport-btn.active {
+            background: linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);
+            color: #1a1a2e;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            padding: 12px;
+            background: #16213e;
+            border-bottom: 1px solid #2a2a4e;
+            flex-wrap: wrap;
+            font-size: 12px;
+            color: #888;
+        }
+        .legend span { display: flex; align-items: center; gap: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .content { padding: 15px; padding-bottom: 100px; }
+        .demo-banner {
+            background: rgba(255, 230, 109, 0.1);
+            border: 1px solid rgba(255, 230, 109, 0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin: 10px 15px;
+            font-size: 12px;
+            color: #FFE66D;
+            text-align: center;
+        }
+        .card {
+            background: linear-gradient(145deg, #1e2745 0%, #16213e 100%);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 15px;
+            border-left: 4px solid #4ECDC4;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+        .badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .badge.sharp { background: linear-gradient(135deg, #FF6B6B 0%, #ee5a5a 100%); color: #fff; }
+        .badge.gap { background: linear-gradient(135deg, #FFE66D 0%, #f0d860 100%); color: #1a1a2e; }
+        .teams { margin-bottom: 12px; }
+        .team-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+        .team-name { font-size: 17px; font-weight: 600; }
+        .team-name.sharp { color: #FF6B6B; }
+        .vs { color: #666; font-size: 12px; padding: 2px 0; }
+        .consensus {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 0;
+            border-top: 1px solid #2a2a4e;
+            margin-top: 8px;
+        }
+        .consensus-label { color: #888; font-size: 13px; }
+        .consensus-value { color: #4ECDC4; font-size: 20px; font-weight: 700; }
+        .game-time { font-size: 12px; color: #888; margin-top: 8px; }
+        .live { color: #FF6B6B; font-weight: 700; }
+        .alert {
+            margin-top: 10px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 13px;
+            background: rgba(255, 107, 107, 0.15);
+            color: #FF6B6B;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+        }
+        .tap-hint { color: #666; font-size: 11px; text-align: right; margin-top: 12px; }
+        .no-games { text-align: center; padding: 60px 20px; color: #888; }
+        .no-games .icon { font-size: 48px; margin-bottom: 15px; }
+        .result-card {
+            background: linear-gradient(145deg, #1e2745 0%, #16213e 100%);
+            border-radius: 16px;
+            padding: 18px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .result-header .time { font-size: 12px; color: #888; }
+        .status-badge {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            background: #2a2a4e;
+            color: #888;
+        }
+        .status-badge.live { background: linear-gradient(135deg, #FF6B6B 0%, #ee5a5a 100%); color: #fff; }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #2a2a4e;
+        }
+        .result-row:last-of-type { border-bottom: none; }
+        .result-team { display: flex; align-items: center; gap: 10px; }
+        .result-name { font-size: 16px; font-weight: 600; }
+        .result-name.winner { color: #4ECDC4; }
+        .result-name.loser { color: #888; }
+        .win-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: rgba(78, 205, 196, 0.2);
+            color: #4ECDC4;
+            font-weight: 700;
+        }
+        .result-score { font-size: 28px; font-weight: 800; }
+        .result-score.winner { color: #4ECDC4; }
+        .result-score.loser { color: #888; }
+        .result-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2a2a4e;
+            font-size: 12px;
+            color: #888;
+        }
+        .result-meta .margin { color: #4ECDC4; font-weight: 600; }
+        .date-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 12px 15px;
+            background: #16213e;
+            border-bottom: 1px solid #2a2a4e;
+        }
+        .date-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #2a2a4e;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .date-display { font-size: 15px; font-weight: 600; min-width: 150px; text-align: center; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .stat-box { background: #16213e; border-radius: 12px; padding: 15px; text-align: center; }
+        .stat-value { font-size: 24px; font-weight: 800; color: #4ECDC4; }
+        .stat-label { font-size: 11px; color: #888; margin-top: 4px; }
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #4ECDC4 0%, #44a08d 100%);
+            color: #1a1a2e;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(78, 205, 196, 0.4);
+            z-index: 50;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 200;
+            display: none;
+        }
+        .modal.open { display: flex; flex-direction: column; }
+        .modal-content {
+            flex: 1;
+            background: #1a1a2e;
+            margin-top: 40px;
+            border-radius: 20px 20px 0 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background: #16213e;
+            border-bottom: 1px solid #2a2a4e;
+        }
+        .modal-title { font-size: 16px; font-weight: 700; flex: 1; }
+        .close-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: #2a2a4e;
+            color: #fff;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        .modal-body { flex: 1; overflow: auto; padding: 15px; }
+        .section { background: #16213e; border-radius: 14px; padding: 16px; margin-bottom: 15px; }
+        .section-title { font-size: 15px; font-weight: 700; margin-bottom: 15px; }
+        .table { width: 100%; font-size: 12px; }
+        .table-header {
+            display: flex;
+            border-bottom: 1px solid #2a2a4e;
+            padding-bottom: 10px;
+            margin-bottom: 5px;
+            color: #888;
+            font-weight: 600;
+        }
+        .table-row {
+            display: flex;
+            padding: 10px 0;
+            border-bottom: 1px solid #2a2a4e;
+            align-items: center;
+        }
+        .table-row.sharp { background: rgba(255, 107, 107, 0.1); margin: 0 -16px; padding: 10px 16px; border-radius: 8px; }
+        .table-row.best { background: rgba(78, 205, 196, 0.15); margin: 0 -16px; padding: 10px 16px; border-radius: 8px; }
+        .cell { flex: 1; text-align: center; }
+        .cell.book { flex: 1.3; text-align: left; font-weight: 500; }
+        .cell.best { color: #4ECDC4; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 Sharp Line Tracker</h1>
+        <div class="update" id="lastUpdate"></div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" id="linesTab" onclick="switchTab('lines')">📊 Lines</button>
+        <button class="tab" id="resultsTab" onclick="switchTab('results')">🏆 Results</button>
+    </div>
+
+    <div class="sports" id="sportsNav"></div>
+
+    <div class="demo-banner">📋 Demo Mode - Sample data shown. Host on a server for live odds.</div>
+
+    <div id="linesContent">
+        <div class="legend">
+            <span><div class="dot" style="background:#FF6B6B"></div> Sharp Action</span>
+            <span><div class="dot" style="background:#FFE66D"></div> Line Gap</span>
+        </div>
+        <div class="content" id="gamesList"></div>
+    </div>
+
+    <div id="resultsContent" style="display:none">
+        <div class="date-nav">
+            <button class="date-btn" onclick="changeDate(-1)">‹</button>
+            <span class="date-display" id="dateDisplay"></span>
+            <button class="date-btn" onclick="changeDate(1)">›</button>
+        </div>
+        <div class="content" id="resultsList"></div>
+    </div>
+
+    <button class="refresh-btn" onclick="refresh()">🔄</button>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle"></span>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const SPORTS = [
+            { key: 'basketball_nba', name: 'NBA', emoji: '🏀' },
+            { key: 'americanfootball_nfl', name: 'NFL', emoji: '🏈' },
+            { key: 'icehockey_nhl', name: 'NHL', emoji: '🏒' },
+            { key: 'baseball_mlb', name: 'MLB', emoji: '⚾' }
+        ];
+
+        const SHARP_BOOKS = ['pinnacle', 'bovada', 'betonlineag'];
+        const BOOK_NAMES = { fanduel: 'FanDuel', draftkings: 'DraftKings', betmgm: 'BetMGM', pinnacle: 'Pinnacle', bovada: 'Bovada' };
+
+        const DEMO_GAMES = {
+            'basketball_nba': [
+                { id: '1', home_team: 'Los Angeles Lakers', away_team: 'Boston Celtics', commence_time: new Date(Date.now() + 3600000).toISOString(),
+                  bookmakers: [
+                    { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 2.5, price: -110 }, { name: 'Los Angeles Lakers', point: -2.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 224.5, price: -110 }, { name: 'Under', point: 224.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -130 }, { name: 'Los Angeles Lakers', price: 110 }] }] },
+                    { key: 'draftkings', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 3, price: -108 }, { name: 'Los Angeles Lakers', point: -3, price: -112 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 225, price: -110 }, { name: 'Under', point: 225, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -128 }, { name: 'Los Angeles Lakers', price: 108 }] }] },
+                    { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 2, price: -105 }, { name: 'Los Angeles Lakers', point: -2, price: -105 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 224, price: -105 }, { name: 'Under', point: 224, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -125 }, { name: 'Los Angeles Lakers', price: 105 }] }] },
+                    { key: 'bovada', markets: [{ key: 'spreads', outcomes: [{ name: 'Boston Celtics', point: 2, price: -110 }, { name: 'Los Angeles Lakers', point: -2, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 224, price: -110 }, { name: 'Under', point: 224, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Boston Celtics', price: -125 }, { name: 'Los Angeles Lakers', price: 105 }] }] }
+                  ]
+                },
+                { id: '2', home_team: 'Golden State Warriors', away_team: 'Phoenix Suns', commence_time: new Date(Date.now() + 7200000).toISOString(),
+                  bookmakers: [
+                    { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Phoenix Suns', point: -1.5, price: -110 }, { name: 'Golden State Warriors', point: 1.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 230, price: -110 }, { name: 'Under', point: 230, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Phoenix Suns', price: -118 }, { name: 'Golden State Warriors', price: -102 }] }] },
+                    { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Phoenix Suns', point: -2.5, price: -102 }, { name: 'Golden State Warriors', point: 2.5, price: -108 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 229, price: -105 }, { name: 'Under', point: 229, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Phoenix Suns', price: -130 }, { name: 'Golden State Warriors', price: 110 }] }] }
+                  ]
+                }
+            ],
+            'americanfootball_nfl': [
+                { id: '3', home_team: 'Kansas City Chiefs', away_team: 'Buffalo Bills', commence_time: new Date(Date.now() + 86400000).toISOString(),
+                  bookmakers: [
+                    { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Buffalo Bills', point: 3.5, price: -110 }, { name: 'Kansas City Chiefs', point: -3.5, price: -110 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 52.5, price: -110 }, { name: 'Under', point: 52.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Buffalo Bills', price: 150 }, { name: 'Kansas City Chiefs', price: -175 }] }] },
+                    { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Buffalo Bills', point: 2.5, price: -105 }, { name: 'Kansas City Chiefs', point: -2.5, price: -105 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 51.5, price: -105 }, { name: 'Under', point: 51.5, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Buffalo Bills', price: 135 }, { name: 'Kansas City Chiefs', price: -155 }] }] }
+                  ]
+                }
+            ],
+            'icehockey_nhl': [
+                { id: '4', home_team: 'Toronto Maple Leafs', away_team: 'Montreal Canadiens', commence_time: new Date(Date.now() + 5400000).toISOString(),
+                  bookmakers: [
+                    { key: 'fanduel', markets: [{ key: 'spreads', outcomes: [{ name: 'Montreal Canadiens', point: 1.5, price: -180 }, { name: 'Toronto Maple Leafs', point: -1.5, price: 155 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 6.5, price: -110 }, { name: 'Under', point: 6.5, price: -110 }] }, { key: 'h2h', outcomes: [{ name: 'Montreal Canadiens', price: 175 }, { name: 'Toronto Maple Leafs', price: -210 }] }] },
+                    { key: 'pinnacle', markets: [{ key: 'spreads', outcomes: [{ name: 'Montreal Canadiens', point: 1.5, price: -165 }, { name: 'Toronto Maple Leafs', point: -1.5, price: 145 }] }, { key: 'totals', outcomes: [{ name: 'Over', point: 6, price: -105 }, { name: 'Under', point: 6, price: -105 }] }, { key: 'h2h', outcomes: [{ name: 'Montreal Canadiens', price: 165 }, { name: 'Toronto Maple Leafs', price: -190 }] }] }
+                  ]
+                }
+            ]
+        };
+
+        const DEMO_SCORES = {
+            'basketball_nba': [
+                { id: 's1', home_team: 'Denver Nuggets', away_team: 'Milwaukee Bucks', commence_time: new Date(Date.now() - 7200000).toISOString(), completed: true, scores: [{ name: 'Denver Nuggets', score: '118' }, { name: 'Milwaukee Bucks', score: '112' }] },
+                { id: 's2', home_team: 'Philadelphia 76ers', away_team: 'Cleveland Cavaliers', commence_time: new Date(Date.now() - 10800000).toISOString(), completed: true, scores: [{ name: 'Philadelphia 76ers', score: '105' }, { name: 'Cleveland Cavaliers', score: '109' }] }
+            ],
+            'americanfootball_nfl': [
+                { id: 's3', home_team: 'San Francisco 49ers', away_team: 'Dallas Cowboys', commence_time: new Date(Date.now() - 86400000).toISOString(), completed: true, scores: [{ name: 'San Francisco 49ers', score: '31' }, { name: 'Dallas Cowboys', score: '24' }] }
+            ],
+            'icehockey_nhl': [
+                { id: 's4', home_team: 'Boston Bruins', away_team: 'New York Rangers', commence_time: new Date(Date.now() - 14400000).toISOString(), completed: true, scores: [{ name: 'Boston Bruins', score: '4' }, { name: 'New York Rangers', score: '3' }] }
+            ]
+        };
+
+        let currentSport = SPORTS[0];
+        let currentTab = 'lines';
+        let selectedDate = new Date();
+        let games = [];
+        let scores = [];
+
+        function init() {
+            renderSports();
+            loadData();
+            updateTime();
+        }
+
+        function renderSports() {
+            const nav = document.getElementById('sportsNav');
+            nav.innerHTML = SPORTS.map(s => 
+                `<button class="sport-btn ${s.key === currentSport.key ? 'active' : ''}" onclick="selectSport('${s.key}')">${s.emoji} ${s.name}</button>`
+            ).join('');
+        }
+
+        function selectSport(key) {
+            currentSport = SPORTS.find(s => s.key === key);
+            renderSports();
+            loadData();
+        }
+
+        function loadData() {
+            games = DEMO_GAMES[currentSport.key] || [];
+            scores = DEMO_SCORES[currentSport.key] || [];
+            renderGames();
+            renderResults();
+            updateTime();
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.getElementById('linesTab').classList.toggle('active', tab === 'lines');
+            document.getElementById('resultsTab').classList.toggle('active', tab === 'results');
+            document.getElementById('linesContent').style.display = tab === 'lines' ? 'block' : 'none';
+            document.getElementById('resultsContent').style.display = tab === 'results' ? 'block' : 'none';
+        }
+
+        function getConsensus(game) {
+            const lines = [];
+            game.bookmakers.forEach(b => {
+                const spread = b.markets.find(m => m.key === 'spreads');
+                if (spread && spread.outcomes[0].point !== undefined) {
+                    lines.push(spread.outcomes[0].point);
+                }
+            });
+            if (lines.length === 0) return 'N/A';
+            const avg = lines.reduce((a, b) => a + b, 0) / lines.length;
+            return avg > 0 ? '+' + avg.toFixed(1) : avg.toFixed(1);
+        }
+
+        function detectSharp(game) {
+            const sharp = [], pub = [];
+            game.bookmakers.forEach(b => {
+                const spread = b.markets.find(m => m.key === 'spreads');
+                if (spread) {
+                    const line = spread.outcomes[0].point;
+                    if (SHARP_BOOKS.includes(b.key)) sharp.push(line);
+                    else pub.push(line);
+                }
+            });
+            if (sharp.length === 0 || pub.length === 0) return null;
+            const avgSharp = sharp.reduce((a, b) => a + b, 0) / sharp.length;
+            const avgPub = pub.reduce((a, b) => a + b, 0) / pub.length;
+            const diff = Math.abs(avgSharp - avgPub);
+            if (diff >= 0.5) {
+                return { side: avgSharp > avgPub ? game.away_team : game.home_team, diff: diff.toFixed(1) };
+            }
+            return null;
+        }
+
+        function getLineGap(game) {
+            const lines = [];
+            game.bookmakers.forEach(b => {
+                const spread = b.markets.find(m => m.key === 'spreads');
+                if (spread) lines.push(spread.outcomes[0].point);
+            });
+            if (lines.length < 2) return null;
+            const gap = Math.max(...lines) - Math.min(...lines);
+            return gap >= 1 ? gap.toFixed(1) : null;
+        }
+
+        function renderGames() {
+            const list = document.getElementById('gamesList');
+            if (games.length === 0) {
+                list.innerHTML = `<div class="no-games"><div class="icon">🏟️</div><div>No games for ${currentSport.name}</div></div>`;
+                return;
+            }
+            list.innerHTML = games.map(g => {
+                const sharp = detectSharp(g);
+                const gap = getLineGap(g);
+                const time = new Date(g.commence_time);
+                const isLive = time < new Date();
+                return `
+                    <div class="card" onclick="openModal('${g.id}')">
+                        <div class="badges">
+                            ${sharp ? '<span class="badge sharp">🎯 SHARP ACTION</span>' : ''}
+                            ${gap ? `<span class="badge gap">📊 ${gap}pt GAP</span>` : ''}
+                        </div>
+                        <div class="teams">
+                            <div class="team-row">
+                                <span class="team-name ${sharp && sharp.side === g.away_team ? 'sharp' : ''}">${g.away_team}</span>
+                            </div>
+                            <div class="vs">@</div>
+                            <div class="team-row">
+                                <span class="team-name ${sharp && sharp.side === g.home_team ? 'sharp' : ''}">${g.home_team}</span>
+                            </div>
+                        </div>
+                        <div class="consensus">
+                            <span class="consensus-label">Consensus:</span>
+                            <span class="consensus-value">${getConsensus(g)}</span>
+                        </div>
+                        <div class="game-time">${isLive ? '<span class="live">● LIVE</span>' : time.toLocaleString()}</div>
+                        ${sharp ? `<div class="alert">💡 Sharp books favor <strong>${sharp.side}</strong> by ${sharp.diff} pts</div>` : ''}
+                        <div class="tap-hint">Tap for details →</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDate(date) {
+            const today = new Date();
+            const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+            if (date.toDateString() === today.toDateString()) return 'Today';
+            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+            return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        }
+
+        function changeDate(days) {
+            selectedDate.setDate(selectedDate.getDate() + days);
+            renderResults();
+        }
+
+        function renderResults() {
+            document.getElementById('dateDisplay').textContent = formatDate(selectedDate);
+            const dateStr = selectedDate.toDateString();
+            const filtered = scores.filter(s => new Date(s.commence_time).toDateString() === dateStr);
+            const list = document.getElementById('resultsList');
+            
+            if (filtered.length === 0) {
+                list.innerHTML = `<div class="no-games"><div class="icon">📅</div><div>No games for ${formatDate(selectedDate)}</div></div>`;
+                return;
+            }
+
+            const completed = filtered.filter(g => g.completed);
+            const homeWins = completed.filter(g => {
+                const h = parseInt(g.scores.find(s => s.name === g.home_team)?.score || 0);
+                const a = parseInt(g.scores.find(s => s.name === g.away_team)?.score || 0);
+                return h > a;
+            }).length;
+
+            let html = `
+                <div class="stats">
+                    <div class="stat-box"><div class="stat-value">${completed.length}</div><div class="stat-label">Games</div></div>
+                    <div class="stat-box"><div class="stat-value">${homeWins}</div><div class="stat-label">Home Wins</div></div>
+                    <div class="stat-box"><div class="stat-value">${completed.length - homeWins}</div><div class="stat-label">Away Wins</div></div>
+                </div>
+            `;
+
+            html += filtered.map(g => {
+                const homeScore = parseInt(g.scores?.find(s => s.name === g.home_team)?.score || 0);
+                const awayScore = parseInt(g.scores?.find(s => s.name === g.away_team)?.score || 0);
+                const homeWon = homeScore > awayScore;
+                const awayWon = awayScore > homeScore;
+                const time = new Date(g.commence_time);
+                const isLive = !g.completed && time < new Date();
+                return `
+                    <div class="result-card">
+                        <div class="result-header">
+                            <span class="time">${time.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
+                            <span class="status-badge ${isLive ? 'live' : ''}">${g.completed ? 'FINAL' : isLive ? '🔴 LIVE' : 'UPCOMING'}</span>
+                        </div>
+                        <div class="result-row">
+                            <div class="result-team">
+                                <span class="result-name ${awayWon ? 'winner' : g.completed ? 'loser' : ''}">${g.away_team}</span>
+                                ${awayWon ? '<span class="win-badge">WIN</span>' : ''}
+                            </div>
+                            <span class="result-score ${awayWon ? 'winner' : g.completed ? 'loser' : ''}">${awayScore || '-'}</span>
+                        </div>
+                        <div class="result-row">
+                            <div class="result-team">
+                                <span class="result-name ${homeWon ? 'winner' : g.completed ? 'loser' : ''}">${g.home_team}</span>
+                                ${homeWon ? '<span class="win-badge">WIN</span>' : ''}
+                            </div>
+                            <span class="result-score ${homeWon ? 'winner' : g.completed ? 'loser' : ''}">${homeScore || '-'}</span>
+                        </div>
+                        ${g.completed ? `<div class="result-meta"><span>Total: ${homeScore + awayScore} pts</span><span class="margin">${homeWon ? g.home_team.split(' ').pop() : g.away_team.split(' ').pop()} by ${Math.abs(homeScore - awayScore)}</span></div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            list.innerHTML = html;
+        }
+
+        function openModal(gameId) {
+            const game = games.find(g => g.id === gameId);
+            if (!game) return;
+            
+            document.getElementById('modalTitle').textContent = `${game.away_team} @ ${game.home_team}`;
+            
+            const spreads = [], totals = [], mls = [];
+            game.bookmakers.forEach(b => {
+                const spread = b.markets.find(m => m.key === 'spreads');
+                const total = b.markets.find(m => m.key === 'totals');
+                const ml = b.markets.find(m => m.key === 'h2h');
+                if (spread) spreads.push({ book: b.key, away: spread.outcomes.find(o => o.name === game.away_team), home: spread.outcomes.find(o => o.name === game.home_team) });
+                if (total) totals.push({ book: b.key, over: total.outcomes.find(o => o.name === 'Over'), under: total.outcomes.find(o => o.name === 'Under') });
+                if (ml) mls.push({ book: b.key, away: ml.outcomes.find(o => o.name === game.away_team), home: ml.outcomes.find(o => o.name === game.home_team) });
+            });
+            
+            spreads.sort((a, b) => (b.away?.point || 0) - (a.away?.point || 0));
+            const fmt = p => p > 0 ? '+' + p : p;
+            const awayShort = game.away_team.split(' ').pop();
+            const homeShort = game.home_team.split(' ').pop();
+
+            document.getElementById('modalBody').innerHTML = `
+                <div class="section">
+                    <div class="section-title">📊 Spreads</div>
+                    <div class="table">
+                        <div class="table-header"><span class="cell book">Book</span><span class="cell">${awayShort}</span><span class="cell">${homeShort}</span></div>
+                        ${spreads.map((s, i) => `
+                            <div class="table-row ${SHARP_BOOKS.includes(s.book) ? 'sharp' : ''} ${i === 0 ? 'best' : ''}">
+                                <span class="cell book">${SHARP_BOOKS.includes(s.book) ? '🎯 ' : ''}${BOOK_NAMES[s.book] || s.book}</span>
+                                <span class="cell ${i === 0 ? 'best' : ''}">${fmt(s.away?.point)} (${fmt(s.away?.price)})</span>
+                                <span class="cell">${fmt(s.home?.point)} (${fmt(s.home?.price)})</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">📈 Totals</div>
+                    <div class="table">
+                        <div class="table-header"><span class="cell book">Book</span><span class="cell">Over</span><span class="cell">Under</span></div>
+                        ${totals.map(t => `
+                            <div class="table-row ${SHARP_BOOKS.includes(t.book) ? 'sharp' : ''}">
+                                <span class="cell book">${BOOK_NAMES[t.book] || t.book}</span>
+                                <span class="cell">O${t.over?.point} (${fmt(t.over?.price)})</span>
+                                <span class="cell">U${t.under?.point} (${fmt(t.under?.price)})</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="section">
+                    <div class="section-title">💰 Moneyline</div>
+                    <div class="table">
+                        <div class="table-header"><span class="cell book">Book</span><span class="cell">${awayShort}</span><span class="cell">${homeShort}</span></div>
+                        ${mls.map(m => `
+                            <div class="table-row ${SHARP_BOOKS.includes(m.book) ? 'sharp' : ''}">
+                                <span class="cell book">${BOOK_NAMES[m.book] || m.book}</span>
+                                <span class="cell">${fmt(m.away?.price)}</span>
+                                <span class="cell">${fmt(m.home?.price)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('modal').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('open');
+        }
+
+        function updateTime() {
+            document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+        }
+
+        function refresh() {
+            loadData();
+        }
+
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        init();
+    </script>
+</body>
+</html>
